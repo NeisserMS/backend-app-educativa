@@ -19,9 +19,16 @@ app.use(express.json());
 
 // Conectar a MongoDB
 mongoose
-  .connect(process.env.MONGO_URI)
+  .connect(process.env.MONGO_URI, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+    ssl: true, // Asegúrate de que SSL está habilitado
+  })
   .then(() => console.log("Conectado a MongoDB"))
-  .catch((err) => console.error("Error de conexión:", err));
+  .catch((err) => {
+    console.error("Error de conexión:", err);
+    process.exit(1); // Salir del proceso si no se puede conectar a la base de datos
+  });
 
 // Rutas de la API
 const authRoutes = require("./routes/authRoutes");

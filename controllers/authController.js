@@ -26,19 +26,26 @@ exports.register = async (req, res) => {
 
 exports.login = async (req, res) => {
   const { email, password } = req.body;
+  console.log("Datos recibidos:", { email, password });
   try {
     const user = await User.findOne({ email });
-    if (!user) return res.status(400).json({ error: "Usuario no encontrado" });
+    if (!user) {
+      console.log("Usuario no encontrado");
+      return res.status(400).json({ error: "Usuario no encontrado" });
+    }
 
     const isMatch = await user.comparePassword(password);
-    if (!isMatch)
+    if (!isMatch) {
+      console.log("Contraseña incorrecta");
       return res.status(400).json({ error: "Contraseña incorrecta" });
+    }
 
     const token = jwt.sign(
       { id: user._id, role: user.role },
       process.env.JWT_SECRET,
       { expiresIn: "1d" }
     );
+    console.log("Token generado:", token);
     res.json({
       token,
       user: {
@@ -50,6 +57,7 @@ exports.login = async (req, res) => {
       },
     });
   } catch (error) {
+    console.log("Error al iniciar sesión:", error);
     res.status(500).json({ error: "Error en el servidor" });
   }
 };
