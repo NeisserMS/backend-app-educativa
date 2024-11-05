@@ -86,6 +86,10 @@ const options = {
               format: "date-time",
               example: "2023-09-23T06:57:20.975Z",
             },
+            expected_output: {
+              type: "string",
+              example: "Salida esperada del ejercicio.",
+            }
           },
         },
         Solution: {

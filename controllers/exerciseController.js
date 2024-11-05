@@ -1,6 +1,7 @@
 // backend/controllers/exerciseController.js
 const Exercise = require("../models/Exercise");
 const Solution = require("../models/Solution");
+const config = require('../config');
 const axios = require("axios");
 
 exports.getAllExercises = async (req, res) => {
@@ -12,32 +13,45 @@ exports.getAllExercises = async (req, res) => {
   }
 };
 
+const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const retryRequest = async (fn, retries = 3, delayTime = 1000) => {
+  try {
+    return await fn();
+  } catch (error) {
+    if (retries === 0) throw error;
+    await delay(delayTime);
+    return retryRequest(fn, retries - 1, delayTime);
+  }
+};
+
 exports.generateExercise = async (req, res) => {
   const { difficulty } = req.body; // 1: Fácil, 2: Medio, 3: Difícil
   try {
-    // Llamada a la API de OpenAI para generar un ejercicio
-    const prompt = `Genera un ejercicio de Programación Orientada a Objetos en Java con dificultad nivel ${difficulty}. Incluye una descripción clara del problema y los requisitos.`;
+    const prompt = `Genera un ejercicio de Programación Orientada a Objetos en Java con dificultad nivel ${difficulty}. Incluye una descripción clara del problema y los requisitos, pero no la solución. Que sean sencillos los ejercicios`;
 
-    const response = await axios.post(
-      "https://api.openai.com/v1/engines/davinci-codex/completions",
-      {
-        prompt,
-        max_tokens: 300,
-        temperature: 0.7,
-        n: 1,
-        stop: null,
-      },
-      {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+    const response = await retryRequest(() =>
+      axios.post(
+        "https://api.openai.com/v1/chat/completions",
+        {
+          model: "gpt-4o-mini",
+          messages: [{ role: "user", content: prompt }],
+          max_tokens: 600,
+          temperature: 0.5
         },
-      }
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+            "OpenAI-Organization": process.env.OPENAI_ORG_ID,
+            "OpenAI-Project": process.env.OPENAI_PROJECT_ID,
+          },
+        }
+      )
     );
 
-    const exerciseDescription = response.data.choices[0].text.trim();
+    const exerciseDescription = response.data.choices[0].message.content.trim();
 
-    // Crear y guardar el ejercicio en la base de datos
     const newExercise = new Exercise({
       title: `Ejercicio Nivel ${difficulty}`,
       description: exerciseDescription,
@@ -48,7 +62,7 @@ exports.generateExercise = async (req, res) => {
 
     res.status(201).json(newExercise);
   } catch (error) {
-    console.error(error.response.data);
+    console.error(error.response ? error.response.data : error.message);
     res.status(500).json({ error: "Error al generar el ejercicio" });
   }
 };
@@ -63,14 +77,19 @@ exports.submitSolution = async (req, res) => {
     if (!exercise)
       return res.status(404).json({ error: "Ejercicio no encontrado" });
 
-    // Enviar el código a Judge0 para su evaluación
+    const base64Code = Buffer.from(code).toString('base64');
+
+    const expectedOutput = exercise.expected_output
+      ? Buffer.from(exercise.expected_output).toString('base64')
+      : "";
+
     const submissionResponse = await axios.post(
-      `${process.env.JUDGE0_API_URL}/submissions`,
+      `${process.env.JUDGE0_API_URL}/submissions?base64_encoded=true`,
       {
-        source_code: code,
-        language_id: 62, // Java (usualmente 62 para Java 11)
+        source_code: base64Code,
+        language_id: 62, // ID de Java en Judge0
         stdin: "",
-        expected_output: exercise.expected_output || "", // Opcional: puedes definir la salida esperada
+        expected_output: expectedOutput,
       },
       {
         headers: {
@@ -83,11 +102,10 @@ exports.submitSolution = async (req, res) => {
 
     const token = submissionResponse.data.token;
 
-    // Esperar a que la evaluación se complete
     let evaluation;
     while (true) {
       const evaluationResponse = await axios.get(
-        `${process.env.JUDGE0_API_URL}/submissions/${token}`,
+        `${process.env.JUDGE0_API_URL}/submissions/${token}?base64_encoded=true`,
         {
           headers: {
             "x-rapidapi-host": "judge0-ce.p.rapidapi.com",
@@ -97,23 +115,72 @@ exports.submitSolution = async (req, res) => {
       );
 
       evaluation = evaluationResponse.data;
+
       if (evaluation.status.id >= 3) break; // 3: Completed
       await new Promise((resolve) => setTimeout(resolve, 1000)); // Esperar 1 segundo
     }
+
+    // Decodificar los resultados de base64 a UTF-8
+    const decodeBase64 = (data) => (data ? Buffer.from(data, 'base64').toString('utf-8') : null);
+    const stdout = decodeBase64(evaluation.stdout);
+    const stderr = decodeBase64(evaluation.stderr);
+    const compileOutput = decodeBase64(evaluation.compile_output);
+
+    // Generar un prompt para OpenAI para interpretar la salida y dar feedback detallado
+    const openaiPrompt = `
+      Aquí tienes la descripción del problema:
+      ${exercise.description}
+
+      Salida generada por el código:
+      - stdout: ${stdout}
+      - stderr: ${stderr}
+      - compile_output: ${compileOutput}
+
+      Si el resultado es correcto, proporciona una respuesta de éxito con un breve feedback positivo.
+      Si el resultado es incorrecto, explica en lenguaje sencillo el problema en el código, 
+      proporciona posibles sugerencias para mejorarlo y comenta si hay errores de sintaxis o lógica.`;
+
+    const openaiResponse = await axios.post(
+      "https://api.openai.com/v1/chat/completions",
+      {
+        model: "gpt-4o-mini",
+        messages: [{ role: "user", content: openaiPrompt }],
+        max_tokens: 300,
+        temperature: 0.7,
+      },
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+        },
+      }
+    );
+
+    const feedback = openaiResponse.data.choices[0].message.content.trim();
 
     // Crear y guardar la solución en la base de datos
     const newSolution = new Solution({
       user: userId,
       exercise: exerciseId,
       code,
-      feedback: evaluation.status.description,
+      feedback,
+      stdout,
+      stderr,
+      compile_output: compileOutput,
     });
 
     await newSolution.save();
 
-    res.json({ message: evaluation.status.description });
+    // Enviar el feedback y resultados al usuario
+    res.json({
+      message: evaluation.status.description,
+      feedback,
+      stdout,
+      stderr,
+      compile_output: compileOutput,
+    });
   } catch (error) {
-    console.error(error);
+    console.error("Error al evaluar la solución:", error.response ? error.response.data : error.message);
     res.status(500).json({ error: "Error al evaluar la solución" });
   }
 };

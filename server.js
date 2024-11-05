@@ -22,7 +22,7 @@ mongoose
   .connect(process.env.MONGO_URI, {
     useNewUrlParser: true,
     useUnifiedTopology: true,
-    ssl: true, // Asegúrate de que SSL está habilitado
+    ssl: true,
   })
   .then(() => console.log("Conectado a MongoDB"))
   .catch((err) => {
