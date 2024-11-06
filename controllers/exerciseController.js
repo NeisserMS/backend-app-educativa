@@ -27,9 +27,19 @@ const retryRequest = async (fn, retries = 3, delayTime = 1000) => {
 
 exports.generateExercise = async (req, res) => {
   const { difficulty } = req.body; // 1: Fácil, 2: Medio, 3: Difícil
+  let prompt;
+  if (difficulty === 1) {
+    prompt = `Genera un ejercicio de Programación Orientada a Objetos en Java con dificultad nivel 1 (Fácil). Incluye una descripción clara y breve del problema. El ejercicio debe ser muy básico, por ejemplo, crear una clase simple con algunas propiedades y métodos, y no incluyas la solución.`;
+  } else if (difficulty === 2) {
+    prompt = `Genera un ejercicio de Programación Orientada a Objetos en Java con dificultad nivel 2 (Medio). Incluye una descripción clara del problema y los requisitos. El ejercicio debe tener una dificultad moderada, por ejemplo, crear una clase con herencia y algunos métodos adicionales, y no incluyas la solución`;
+  } else if (difficulty === 3) {
+    prompt = `Genera un ejercicio de Programación Orientada a Objetos en Java con dificultad nivel 3 (Difícil). Incluye una descripción clara del problema y los requisitos. El ejercicio debe ser avanzado, por ejemplo, crear una clase con herencia, interfaces y métodos complejos, y no incluyas la solución.`;
+  } else {
+    return res.status(400).json({ error: "La dificultad debe ser 1, 2 o 3" });
+  }
+  
   try {
-    const prompt = `Genera un ejercicio de Programación Orientada a Objetos en Java con dificultad nivel ${difficulty}. Incluye una descripción clara del problema y los requisitos, pero no la solución. Que sean sencillos los ejercicios`;
-
+    
     const response = await retryRequest(() =>
       axios.post(
         "https://api.openai.com/v1/chat/completions",
