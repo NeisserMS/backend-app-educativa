@@ -37,6 +37,7 @@ const exerciseRoutes = require("./routes/exerciseRoutes");
 // Definir las rutas
 app.use("/api/auth", authRoutes);
 app.use("/api/exercises", exerciseRoutes);
+// app.use("/api/conversations", exerciseRoutes);
 
 // Ruta principal para probar el servidor
 app.get("/", (req, res) => {
