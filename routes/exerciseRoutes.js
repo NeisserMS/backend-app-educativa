@@ -268,81 +268,6 @@ router.post("/:id/submit", protect, exerciseController.submitSolution);
 
 /**
  * @swagger
- * /conversations/{exerciseId}/{userId}:
- *   get:
- *     summary: Obtener la conversación relacionada con un ejercicio y un usuario específico
- *     tags: [Conversaciones]
- *     security:
- *       - BearerAuth: []
- *     parameters:
- *       - in: path
- *         name: exerciseId
- *         schema:
- *           type: string
- *         required: true
- *         description: ID del ejercicio
- *       - in: path
- *         name: userId
- *         schema:
- *           type: string
- *         required: true
- *         description: ID del usuario
- *     responses:
- *       200:
- *         description: Conversación obtenida exitosamente
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 exercise:
- *                   type: string
- *                   example: "672ebfe2240e8bfd69a916ed"
- *                 user:
- *                   type: string
- *                   example: "67255e4b740f1857e288199f"
- *                 messages:
- *                   type: array
- *                   items:
- *                     type: object
- *                     properties:
- *                       sender:
- *                         type: string
- *                         example: "user"
- *                       content:
- *                         type: string
- *                         example: "Este es un mensaje de ejemplo"
- *                       timestamp:
- *                         type: string
- *                         format: date-time
- *                         example: "2024-11-09T01:50:26.960Z"
- *       404:
- *         description: Conversación no encontrada
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 error:
- *                   type: string
- *                   example: Conversación no encontrada
- *       500:
- *         description: Error en el servidor
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 error:
- *                   type: string
- *                   example: Error al obtener la conversación
- */
-
-// Obtener la conversación relacionada con un ejercicio y un usuario específico
-// router.get("/conversations/:exerciseId/:userId", protect, exerciseController.getConversation);
-
-/**
- * @swagger
  * /exercises/{id}/help:
  *   get:
  *     summary: Obtener una pequeña parte de la solución como ayuda
@@ -391,5 +316,75 @@ router.post("/:id/submit", protect, exerciseController.submitSolution);
 
 // Obtener una pequeña parte de la solución como ayuda
 router.get("/:id/help", protect, exerciseController.getHelp);
+
+/**
+ * @swagger
+ * /exercises/{exerciseId}/{userId}/solution:
+ *   get:
+ *     summary: Obtener la solución de un ejercicio específico para un usuario específico
+ *     tags: [Soluciones]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: exerciseId
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: ID del ejercicio
+ *       - in: path
+ *         name: userId
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: ID del usuario
+ *     responses:
+ *       200:
+ *         description: Solución obtenida exitosamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 user:
+ *                   type: string
+ *                   example: "67255e4b740f1857e288199f"
+ *                 exercise:
+ *                   type: string
+ *                   example: "672ebfe2240e8bfd69a916ed"
+ *                 code:
+ *                   type: string
+ *                   example: "public class Main { ... }"
+ *                 feedback:
+ *                   type: string
+ *                   example: "Buen trabajo, pero podrías mejorar..."
+ *                 createdAt:
+ *                   type: string
+ *                   format: date-time
+ *                   example: "2024-11-09T01:50:26.960Z"
+ *       404:
+ *         description: Solución no encontrada
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: Solución no encontrada
+ *       500:
+ *         description: Error en el servidor
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: Error al obtener la solución
+ */
+
+// Obtener la solución de un ejercicio específico para un usuario específico
+router.get("/:exerciseId/:userId/solution", protect, exerciseController.getSolutionByExerciseAndUser);
 
 module.exports = router;

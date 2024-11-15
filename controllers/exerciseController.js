@@ -1,12 +1,12 @@
 // backend/controllers/exerciseController.js
 const Exercise = require("../models/Exercise");
 const Solution = require("../models/Solution");
-const config = require('../config');
+const mongoose = require("mongoose");
 const axios = require("axios");
 
 const predefinedExercises = {
   1: [
-    { title: "Ejercicio 1: Crear una Clase", description: "Crea una clase llamada Persona con los atributos nombre y edad." },
+    { title: "Ejercicio 1: Crear una Clase", description: "Crea una clase llamada Persona con los atributos nombre y edad, y además incluye el método main para ejecutar el ejercicio,y por ultimo que no considere los métodos get y set." },
     { title: "Ejercicio 2: Métodos Getters y Setters", description: "Añade métodos getters y setters para los atributos nombre y edad en la clase Persona." },
     { title: "Ejercicio 3: Constructor", description: "Añade un constructor a la clase Persona que inicialice los atributos nombre y edad." },
     { title: "Ejercicio 4: Método toString", description: "Añade un método toString a la clase Persona que devuelva una cadena con el nombre y la edad de la persona." },
@@ -99,7 +99,25 @@ exports.generateExercise = async (req, res) => {
   }
 
   try {
-    const existingExercisesCount = await Exercise.countDocuments({ difficulty });
+
+        // Verificar si el usuario tiene al menos 10 ejercicios completados de dificultad 1 para generar un ejercicio de dificultad 2
+        if (difficulty === 2) {
+          const completedLevel1Count = await Exercise.countDocuments({ difficulty: 1, user: userId, status: "Completado" });
+          if (completedLevel1Count < 10) {
+            return res.status(400).json({ error: "Debes completar el nivel Básico" });
+          }
+        }
+    
+        // Verificar si el usuario tiene al menos 10 ejercicios completados de dificultad 1 y 10 ejercicios completados de dificultad 2 para generar un ejercicio de dificultad 3
+        if (difficulty === 3) {
+          const completedLevel1Count = await Exercise.countDocuments({ difficulty: 1, user: userId, status: "Completado" });
+          const completedLevel2Count = await Exercise.countDocuments({ difficulty: 2, user: userId, status: "Completado" });
+          if (completedLevel1Count < 10 || completedLevel2Count < 10) {
+            return res.status(400).json({ error: "Debes completar el nivel Intermedio" });
+          }
+        }    
+
+    const existingExercisesCount = await Exercise.countDocuments({ difficulty, user: userId });
 
     if (existingExercisesCount >= 10) {
       return res.status(400).json({ error: "Se ha alcanzado el límite de 10 ejercicios para este nivel" });
@@ -135,16 +153,25 @@ exports.generateExercise = async (req, res) => {
 
     const newExercise = new Exercise({
       title: nextExercise.title,
-      subtitle: subtitle.trim(), 
+      subtitle: subtitle.trim(), // Guardar el subtítulo
       description: exerciseDescription,
       difficulty,
       user: userId,
-      status: "En proceso", 
+      status: "En proceso", // Establecer el estado inicial
     });
 
     await newExercise.save();
 
-    res.status(201).json(newExercise);
+    res.status(201).json({
+      exercise: {
+        title: newExercise.title,
+        subtitle: newExercise.subtitle,
+        description: newExercise.description,
+        difficulty: newExercise.difficulty,
+        status: newExercise.status,
+        id: newExercise._id,
+      }
+    });
   } catch (error) {
     console.error(error.response ? error.response.data : error.message);
     res.status(500).json({ error: "Error al generar el ejercicio" });
@@ -191,17 +218,84 @@ exports.getHelp = async (req, res) => {
   }
 };
 
+exports.getSolutionByExerciseAndUser = async (req, res) => {
+  const { exerciseId, userId } = req.params;
+
+  try {
+    // Verificar si existe una solución en la colección solutions
+    const solution = await Solution.findOne({
+      exercise: new mongoose.Types.ObjectId(exerciseId),
+      user: new mongoose.Types.ObjectId(userId),
+    });
+
+    let exercise;
+    if (solution) {
+      // Si existe una solución, obtener el ejercicio correspondiente
+      exercise = await Exercise.findById(solution.exercise);
+      if (!exercise) {
+        return res.status(404).json({ error: "Ejercicio no encontrado" });
+      }
+    } else {
+      // Si no existe una solución, obtener los detalles del ejercicio
+      exercise = await Exercise.findById(exerciseId);
+      if (!exercise) {
+        return res.status(404).json({ error: "Ejercicio no encontrado" });
+      }
+    }
+
+    // Combinar la información de la solución y el ejercicio
+    const combinedResult = {
+      exercise: {
+        id: exercise._id,
+        title: exercise.title,
+        description: exercise.description,
+        subtitle: exercise.subtitle,
+        difficulty: exercise.difficulty,
+      },
+      solution: solution || null,
+    };
+
+    return res.json(combinedResult);
+  } catch (error) {
+    console.error("Error al obtener la solución:", error);
+    // Si ocurre un error, intentar obtener los detalles del ejercicio
+    try {
+      const exercise = await Exercise.findById(exerciseId);
+      if (!exercise) {
+        return res.status(404).json({ error: "Ejercicio no encontrado" });
+      }
+      return res.json({
+        exercise: {
+          title: exercise.title,
+          description: exercise.description,
+          subtitle: exercise.subtitle,
+          difficulty: exercise.difficulty,
+        },
+        solution: null,
+      });
+    } catch (exerciseError) {
+      console.error("Error al obtener el ejercicio:", exerciseError);
+      res.status(500).json({ error: "Error al obtener la solución o el ejercicio" });
+    }
+  }
+};
+
 exports.submitSolution = async (req, res) => {
   const exerciseId = req.params.id;
   const { code } = req.body;
   const userId = req.user._id;
 
   try {
+
+    console.log("Ejercicio ID:", exerciseId);
+    console.log("Usuario ID:", userId);
+
     const exercise = await Exercise.findById(exerciseId);
     if (!exercise)
       return res.status(404).json({ error: "Ejercicio no encontrado" });
 
-    // Asegúrate de que el código no tenga clases públicas y que incluya todas las importaciones necesarias
+    console.log("Ejercicio encontrado:", exercise);
+
     const adjustedCode = code.replace(/public\s+class/g, 'class');
 
     const base64Code = Buffer.from(adjustedCode).toString('base64');
@@ -243,8 +337,8 @@ exports.submitSolution = async (req, res) => {
 
       evaluation = evaluationResponse.data;
 
-      if (evaluation.status.id >= 3) break; // 3: Completed
-      await new Promise((resolve) => setTimeout(resolve, 1000)); // Esperar 1 segundo
+      if (evaluation.status.id >= 3) break; 
+      await new Promise((resolve) => setTimeout(resolve, 1000)); 
     }
 
     // Decodificar los resultados de base64 a UTF-8
@@ -252,19 +346,6 @@ exports.submitSolution = async (req, res) => {
     const stdout = decodeBase64(evaluation.stdout);
     const stderr = decodeBase64(evaluation.stderr);
     const compileOutput = decodeBase64(evaluation.compile_output);
-
-        // Determinar el nuevo estado del ejercicio
-        let newStatus = "En proceso";
-        if (evaluation.status.description === "Accepted") {
-          newStatus = "Completado";
-        } else {
-          newStatus = "Requiere revisión";
-        }
-    
-        // Actualizar el estado del ejercicio
-        exercise.status = newStatus;
-        await exercise.save();
-    
 
     // Generar un prompt para OpenAI para interpretar la salida y dar feedback detallado
     const openaiPrompt = `
@@ -300,7 +381,20 @@ exports.submitSolution = async (req, res) => {
 
     const feedback = openaiResponse.data.choices[0].message.content.trim();
 
-    // Crear y guardar la solución en la base de datos
+    console.log("Feedback generado por OpenAI:", feedback);
+
+    // Determinar el nuevo estado del ejercicio
+    let newStatus = "En proceso";
+    if (evaluation.status.description === "Accepted" && !stderr && !compileOutput && stdout === exercise.expected_output) {
+      newStatus = "Completado";
+    } else {
+      newStatus = "Requiere revisión";
+    }
+
+    // Actualizar el estado del ejercicio
+    exercise.status = newStatus;
+    await exercise.save();
+
     const newSolution = new Solution({
       user: userId,
       exercise: exerciseId,
@@ -313,24 +407,6 @@ exports.submitSolution = async (req, res) => {
 
     await newSolution.save();
 
-        // // Guardar la conversación en la base de datos
-        // const conversation = await Conversation.findOne({ exercise: exerciseId, user: userId });
-        // if (conversation) {
-        //   conversation.messages.push({ sender: "user", content: code });
-        //   conversation.messages.push({ sender: "ai", content: feedback });
-        //   await conversation.save();
-        // } else {
-        //   const newConversation = new Conversation({
-        //     exercise: exerciseId,
-        //     user: userId,
-        //     messages: [
-        //       { sender: "user", content: code },
-        //       { sender: "ai", content: feedback },
-        //     ],
-        //   });
-        //   await newConversation.save();
-        // }
-    // Enviar el feedback y resultados al usuario
     res.json({
       message: evaluation.status.description,
       feedback,
@@ -345,16 +421,39 @@ exports.submitSolution = async (req, res) => {
   }
 };
 
-// exports.getConversation = async (req, res) => {
-//   const { exerciseId, userId } = req.params;
+//   console.log("Nueva solución guardada en la base de datos:", newSolution);
 
-//   try {
-//     const conversation = await Conversation.findOne({ exercise: exerciseId, user: userId });
-//     if (!conversation) {
-//       return res.status(404).json({ error: "Conversación no encontrada" });
-//     }
-//     res.json(conversation);
+//   // Recuperar todas las soluciones del usuario para este ejercicio
+//   const solutions = await Solution.find({
+//     user: userId,
+//     exercise: exerciseId,
+//   })
+//     .sort({ createdAt: 1 }) // Ordenar cronológicamente
+//     .select("code feedback createdAt"); // Seleccionar solo los campos relevantes
+
+//   console.log("Soluciones recuperadas:", solutions);
+
+//   if (!solutions || solutions.length === 0) {
+//     console.log("No se encontraron soluciones para este ejercicio.");
+//     return res.status(404).json({ error: "No se encontraron soluciones." });
+//   }
+
+//   res.json({
+//     message: "Soluciones recuperadas correctamente.",
+//     exercise: {
+//       id: exercise._id,
+//       title: exercise.title,
+//       description: exercise.description,
+//       subtitle: exercise.subtitle,
+//       difficulty: exercise.difficulty,
+//     },
+//     solutions,
+//   });
 //   } catch (error) {
-//     res.status(500).json({ error: "Error al obtener la conversación" });
+//   console.error(
+//     "Error en submitSolution:",
+//     error.response ? error.response.data : error.message
+//   );
+//   res.status(500).json({ error: "Error al procesar la solución." });
 //   }
 // };
