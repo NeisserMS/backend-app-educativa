@@ -9,7 +9,8 @@ const ExerciseSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now },
   expected_output: { type: String, required: false },
   user: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
-  status: { type: String, default: "En proceso" },
+  status: { type: String, required: true, default: "En proceso" },
+  numberHelp: { type: Number, required: true, default: 0 },
 });
 
 module.exports = mongoose.model("Exercise", ExerciseSchema);

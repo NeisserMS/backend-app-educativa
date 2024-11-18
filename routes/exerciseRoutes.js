@@ -268,7 +268,7 @@ router.post("/:id/submit", protect, exerciseController.submitSolution);
 
 /**
  * @swagger
- * /exercises/{id}/help:
+ * /exercises/{id}/{userId}/help:
  *   get:
  *     summary: Obtener una pequeña parte de la solución como ayuda
  *     tags: [Ejercicios]
@@ -281,6 +281,12 @@ router.post("/:id/submit", protect, exerciseController.submitSolution);
  *           type: string
  *         required: true
  *         description: ID del ejercicio
+ *       - in: path
+ *         name: userId
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: ID del usuario
  *     responses:
  *       200:
  *         description: Ayuda obtenida exitosamente
@@ -315,7 +321,7 @@ router.post("/:id/submit", protect, exerciseController.submitSolution);
  */
 
 // Obtener una pequeña parte de la solución como ayuda
-router.get("/:id/help", protect, exerciseController.getHelp);
+router.get("/:id/:userId/help", protect, exerciseController.getHelp);
 
 /**
  * @swagger

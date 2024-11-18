@@ -56,6 +56,9 @@ const SolutionSchema = new mongoose.Schema({
   code: { type: String, required: true },
   feedback: { type: String, required: true },
   createdAt: { type: Date, default: Date.now },
+  stdout: { type: String }, 
+  stderr: { type: String }, 
+  compile_output: { type: String }, 
   messages: [
     {
       sender: { type: String, required: true }, 

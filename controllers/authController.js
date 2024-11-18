@@ -45,7 +45,7 @@ exports.login = async (req, res) => {
       process.env.JWT_SECRET,
       { expiresIn: "1d" }
     );
-    console.log("Token generado:", token);
+
     res.json({
       token,
       user: {
@@ -54,6 +54,7 @@ exports.login = async (req, res) => {
         apellidos: user.apellidos,
         email: user.email,
         role: user.role,
+        points: user.points,
       },
     });
   } catch (error) {

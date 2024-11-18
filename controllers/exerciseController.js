@@ -1,6 +1,7 @@
 // backend/controllers/exerciseController.js
 const Exercise = require("../models/Exercise");
 const Solution = require("../models/Solution");
+const User = require("../models/User");
 const mongoose = require("mongoose");
 const axios = require("axios");
 
@@ -99,28 +100,56 @@ exports.generateExercise = async (req, res) => {
   }
 
   try {
+    // Validar si hay ejercicios pendientes
+    const unfinishedExercise = await Exercise.findOne({
+      user: userId,
+      status: { $in: ["En proceso", "En verificación"] }, // Puedes ajustar los estados relevantes
+    });
 
-        // Verificar si el usuario tiene al menos 10 ejercicios completados de dificultad 1 para generar un ejercicio de dificultad 2
-        if (difficulty === 2) {
-          const completedLevel1Count = await Exercise.countDocuments({ difficulty: 1, user: userId, status: "Completado" });
-          if (completedLevel1Count < 10) {
-            return res.status(400).json({ error: "Debes completar el nivel Básico" });
-          }
-        }
-    
-        // Verificar si el usuario tiene al menos 10 ejercicios completados de dificultad 1 y 10 ejercicios completados de dificultad 2 para generar un ejercicio de dificultad 3
-        if (difficulty === 3) {
-          const completedLevel1Count = await Exercise.countDocuments({ difficulty: 1, user: userId, status: "Completado" });
-          const completedLevel2Count = await Exercise.countDocuments({ difficulty: 2, user: userId, status: "Completado" });
-          if (completedLevel1Count < 10 || completedLevel2Count < 10) {
-            return res.status(400).json({ error: "Debes completar el nivel Intermedio" });
-          }
-        }    
+    if (unfinishedExercise) {
+      return res.status(400).json({
+        error: `Debes de terminar el ejercicio actual.`,
+      });
+    }
 
-    const existingExercisesCount = await Exercise.countDocuments({ difficulty, user: userId });
+    // Verificar si el usuario tiene al menos 10 ejercicios completados de dificultad 1 para generar un ejercicio de dificultad 2
+    if (difficulty === 2) {
+      const completedLevel1Count = await Exercise.countDocuments({
+        difficulty: 1,
+        user: userId,
+        status: "Completado",
+      });
+      if (completedLevel1Count < 10) {
+        return res.status(400).json({ error: "Debes completar el nivel Básico" });
+      }
+    }
+
+    // Verificar si el usuario tiene al menos 10 ejercicios completados de dificultad 1 y 10 ejercicios completados de dificultad 2 para generar un ejercicio de dificultad 3
+    if (difficulty === 3) {
+      const completedLevel1Count = await Exercise.countDocuments({
+        difficulty: 1,
+        user: userId,
+        status: "Completado",
+      });
+      const completedLevel2Count = await Exercise.countDocuments({
+        difficulty: 2,
+        user: userId,
+        status: "Completado",
+      });
+      if (completedLevel1Count < 10 || completedLevel2Count < 10) {
+        return res.status(400).json({ error: "Debes completar el nivel Intermedio" });
+      }
+    }
+
+    const existingExercisesCount = await Exercise.countDocuments({
+      difficulty,
+      user: userId,
+    });
 
     if (existingExercisesCount >= 10) {
-      return res.status(400).json({ error: "Se ha alcanzado el límite de 10 ejercicios para este nivel" });
+      return res.status(400).json({
+        error: "Se ha alcanzado el límite de 10 ejercicios para este nivel",
+      });
     }
 
     const nextExercise = predefinedExercises[difficulty][existingExercisesCount];
@@ -180,6 +209,7 @@ exports.generateExercise = async (req, res) => {
 
 exports.getHelp = async (req, res) => {
   const exerciseId = req.params.id;
+  const userId = req.params.userId;
 
   try {
     const exercise = await Exercise.findById(exerciseId);
@@ -187,16 +217,98 @@ exports.getHelp = async (req, res) => {
       return res.status(404).json({ error: "Ejercicio no encontrado" });
     }
 
-    const prompt = `Proporciona una pequeña parte de la solución para el siguiente ejercicio de Programación Orientada a Objetos en Java:\n\nTítulo: ${exercise.title}\nDescripción: ${exercise.description}\n\nAsegúrate de no proporcionar la solución completa, solo una pequeña parte que sirva como ayuda u orientación.`;
+    if (exercise.numberHelp >= 2) {
+      return res.status(400).json({ error: "Ya superaste la ayuda para este ejercicio" });
+    }
 
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ error: "Usuario no encontrado" });
+    }
+
+    // Reducir puntos del usuario
+    user.points -= 10;
+    await user.save();
+
+    let prompt;
+    if (exercise.numberHelp === 0) {
+      prompt = `
+        Proporciona solo la estructura inicial de la clase para este ejercicio de Programación Orientada a Objetos en Java (Código fuente, si el ejercicio es pequeño aun asi solo considera la parte inicial, no resuelvas todo), sin resolver completamente el ejercicio.
+        
+        Título: ${exercise.title}
+        Descripción: ${exercise.description}
+        
+        Ejemplo:
+        public class Persona {
+            // Atributos
+            String nombre;
+            int edad;
+
+            public static void main(String[] args) {
+                // Método main vacío para que el usuario lo complete.
+            }
+        }
+      `;
+    } else if (exercise.numberHelp === 1) {
+      prompt = `
+        Proporciona una solución más completa para que se diferencie de la primera ayuda, centraté mas en proporcionar el codgio fuente y no tanto en explicar la solución. El codigo
+        debe ser funcional por lo que debes de considerar el método Main, puedes dar la solución casi al 90%.
+        
+        Título: ${exercise.title}
+        Descripción: ${exercise.description}
+        
+        Ejemplo:
+        public class Persona {
+            String nombre;
+            int edad;
+
+            public static void main(String[] args) {
+                Persona persona1 = new Persona();
+                persona1.nombre = "Juan"; // Asignar nombre
+                persona1.edad = 25;       // Asignar edad
+
+                System.out.println("Nombre: " + persona1.nombre);
+                System.out.println("Edad: " + persona1.edad);
+            }
+        }
+      `;
+    } else {
+      prompt = `
+        Proporciona un ejemplo más detallado que incluya buenas prácticas o expansiones opcionales del código, sin resolver completamente el ejercicio.
+        
+        Título: ${exercise.title}
+        Descripción: ${exercise.description}
+        
+        Ejemplo:
+        public class Persona {
+            String nombre;
+            int edad;
+
+            public Persona(String nombre, int edad) {
+                this.nombre = nombre;
+                this.edad = edad;
+            }
+
+            public static void main(String[] args) {
+                Persona persona1 = new Persona("Juan", 25);
+                Persona persona2 = new Persona("María", 30);
+
+                System.out.println("Nombre: " + persona1.nombre + ", Edad: " + persona1.edad);
+                System.out.println("Nombre: " + persona2.nombre + ", Edad: " + persona2.edad);
+            }
+        }
+      `;
+    }
+
+    // Solicitar a OpenAI el contenido de la ayuda
     const response = await retryRequest(() =>
       axios.post(
         "https://api.openai.com/v1/chat/completions",
         {
           model: "gpt-4o-mini",
           messages: [{ role: "user", content: prompt }],
-          max_tokens: 150,
-          temperature: 0.5
+          max_tokens: 500,
+          temperature: 0.5,
         },
         {
           headers: {
@@ -211,10 +323,13 @@ exports.getHelp = async (req, res) => {
 
     const helpContent = response.data.choices[0].message.content.trim();
 
-    res.status(200).json({ help: helpContent });
+    exercise.numberHelp += 1;
+    await exercise.save();
+
+    res.status(200).json({ help: helpContent, points: user.points });
   } catch (error) {
-    console.error(error.response ? error.response.data : error.message);
-    res.status(500).json({ error: "Error al obtener la ayuda" });
+    console.error("Error al obtener la ayuda:", error.response ? error.response.data : error.message);
+    res.status(500).json({ error: "Error al obtener la ayuda", details: error.message });
   }
 };
 
@@ -222,28 +337,39 @@ exports.getSolutionByExerciseAndUser = async (req, res) => {
   const { exerciseId, userId } = req.params;
 
   try {
-    // Verificar si existe una solución en la colección solutions
-    const solution = await Solution.findOne({
+    // Buscar todas las soluciones del usuario para un ejercicio específico
+    const solutions = await Solution.find({
       exercise: new mongoose.Types.ObjectId(exerciseId),
       user: new mongoose.Types.ObjectId(userId),
-    });
+    })
+      .sort({ createdAt: 1 }) // Ordenar cronológicamente
+      .select("code feedback createdAt"); // Seleccionar solo los campos relevantes
 
-    let exercise;
-    if (solution) {
-      // Si existe una solución, obtener el ejercicio correspondiente
-      exercise = await Exercise.findById(solution.exercise);
+    if (!solutions || solutions.length === 0) {
+      const exercise = await Exercise.findById(exerciseId);
       if (!exercise) {
         return res.status(404).json({ error: "Ejercicio no encontrado" });
       }
-    } else {
-      // Si no existe una solución, obtener los detalles del ejercicio
-      exercise = await Exercise.findById(exerciseId);
-      if (!exercise) {
-        return res.status(404).json({ error: "Ejercicio no encontrado" });
-      }
+
+      return res.json({
+        exercise: {
+          id: exercise._id,
+          title: exercise.title,
+          description: exercise.description,
+          subtitle: exercise.subtitle,
+          difficulty: exercise.difficulty,
+        },
+        solutions: [], // Retornar un array vacío si no hay soluciones
+      });
     }
 
-    // Combinar la información de la solución y el ejercicio
+    // Obtener los detalles del ejercicio asociado
+    const exercise = await Exercise.findById(exerciseId);
+    if (!exercise) {
+      return res.status(404).json({ error: "Ejercicio no encontrado" });
+    }
+
+    // Combinar la información del ejercicio y las soluciones
     const combinedResult = {
       exercise: {
         id: exercise._id,
@@ -252,31 +378,13 @@ exports.getSolutionByExerciseAndUser = async (req, res) => {
         subtitle: exercise.subtitle,
         difficulty: exercise.difficulty,
       },
-      solution: solution || null,
+      solutions, // Devolver todas las soluciones como un array
     };
 
     return res.json(combinedResult);
   } catch (error) {
-    console.error("Error al obtener la solución:", error);
-    // Si ocurre un error, intentar obtener los detalles del ejercicio
-    try {
-      const exercise = await Exercise.findById(exerciseId);
-      if (!exercise) {
-        return res.status(404).json({ error: "Ejercicio no encontrado" });
-      }
-      return res.json({
-        exercise: {
-          title: exercise.title,
-          description: exercise.description,
-          subtitle: exercise.subtitle,
-          difficulty: exercise.difficulty,
-        },
-        solution: null,
-      });
-    } catch (exerciseError) {
-      console.error("Error al obtener el ejercicio:", exerciseError);
-      res.status(500).json({ error: "Error al obtener la solución o el ejercicio" });
-    }
+    console.error("Error al obtener las soluciones:", error);
+    res.status(500).json({ error: "Error al obtener las soluciones o el ejercicio" });
   }
 };
 
@@ -286,10 +394,6 @@ exports.submitSolution = async (req, res) => {
   const userId = req.user._id;
 
   try {
-
-    console.log("Ejercicio ID:", exerciseId);
-    console.log("Usuario ID:", userId);
-
     const exercise = await Exercise.findById(exerciseId);
     if (!exercise)
       return res.status(404).json({ error: "Ejercicio no encontrado" });
@@ -357,9 +461,9 @@ exports.submitSolution = async (req, res) => {
       - stderr: ${stderr}
       - compile_output: ${compileOutput}
 
-      Si el resultado es correcto, proporciona una respuesta de éxito con un breve feedback positivo.
+      Si el resultado es correcto, proporciona una respuesta de éxito con un breve (muy corto) feedback positivo.
       Si el resultado es incorrecto, explica en lenguaje sencillo el problema en el código, 
-      proporciona posibles sugerencias para mejorarlo y comenta si hay errores de sintaxis o lógica.
+      proporciona posibles sugerencias para mejorarlo y comenta si hay errores de sintaxis o lógica (que la respuesta sea corta).
       No proporciones la solución completa, solo orientación y consejos para mejorar el código.
     `;
 
@@ -368,7 +472,7 @@ exports.submitSolution = async (req, res) => {
       {
         model: "gpt-4o-mini",
         messages: [{ role: "user", content: openaiPrompt }],
-        max_tokens: 300,
+        max_tokens: 800,
         temperature: 0.7,
       },
       {
@@ -381,20 +485,19 @@ exports.submitSolution = async (req, res) => {
 
     const feedback = openaiResponse.data.choices[0].message.content.trim();
 
-    console.log("Feedback generado por OpenAI:", feedback);
-
-    // Determinar el nuevo estado del ejercicio
     let newStatus = "En proceso";
-    if (evaluation.status.description === "Accepted" && !stderr && !compileOutput && stdout === exercise.expected_output) {
+
+    if (!stderr && !compileOutput) {
       newStatus = "Completado";
     } else {
       newStatus = "Requiere revisión";
     }
-
+    
     // Actualizar el estado del ejercicio
     exercise.status = newStatus;
     await exercise.save();
 
+    // Guardar la solución con el feedback
     const newSolution = new Solution({
       user: userId,
       exercise: exerciseId,
@@ -407,6 +510,7 @@ exports.submitSolution = async (req, res) => {
 
     await newSolution.save();
 
+    // Responder al cliente
     res.json({
       message: evaluation.status.description,
       feedback,
@@ -420,40 +524,3 @@ exports.submitSolution = async (req, res) => {
     res.status(500).json({ error: "Error al evaluar la solución" });
   }
 };
-
-//   console.log("Nueva solución guardada en la base de datos:", newSolution);
-
-//   // Recuperar todas las soluciones del usuario para este ejercicio
-//   const solutions = await Solution.find({
-//     user: userId,
-//     exercise: exerciseId,
-//   })
-//     .sort({ createdAt: 1 }) // Ordenar cronológicamente
-//     .select("code feedback createdAt"); // Seleccionar solo los campos relevantes
-
-//   console.log("Soluciones recuperadas:", solutions);
-
-//   if (!solutions || solutions.length === 0) {
-//     console.log("No se encontraron soluciones para este ejercicio.");
-//     return res.status(404).json({ error: "No se encontraron soluciones." });
-//   }
-
-//   res.json({
-//     message: "Soluciones recuperadas correctamente.",
-//     exercise: {
-//       id: exercise._id,
-//       title: exercise.title,
-//       description: exercise.description,
-//       subtitle: exercise.subtitle,
-//       difficulty: exercise.difficulty,
-//     },
-//     solutions,
-//   });
-//   } catch (error) {
-//   console.error(
-//     "Error en submitSolution:",
-//     error.response ? error.response.data : error.message
-//   );
-//   res.status(500).json({ error: "Error al procesar la solución." });
-//   }
-// };

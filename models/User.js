@@ -49,8 +49,10 @@ const UserSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true, trim: true },
   password: { type: String, required: true },
   role: { type: String, enum: ["student", "instructor"], default: "student" },
+  points: { type: Number, required: true, default: 600 },
   createdAt: { type: Date, default: Date.now },
 });
+
 
 // Middleware para encriptar la contraseña antes de guardar
 UserSchema.pre("save", async function (next) {
@@ -64,7 +66,6 @@ UserSchema.pre("save", async function (next) {
   }
 });
 
-// Método para comparar contraseñas durante el login
 UserSchema.methods.comparePassword = function (candidatePassword) {
   return bcrypt.compare(candidatePassword, this.password);
 };
