@@ -103,7 +103,7 @@ exports.generateExercise = async (req, res) => {
     // Validar si hay ejercicios pendientes
     const unfinishedExercise = await Exercise.findOne({
       user: userId,
-      status: { $in: ["En proceso", "En verificación"] }, // Puedes ajustar los estados relevantes
+      status: { $in: ["En proceso", "Requiere revisión"] }, // Puedes ajustar los estados relevantes
     });
 
     if (unfinishedExercise) {
