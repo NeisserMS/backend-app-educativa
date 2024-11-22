@@ -58,7 +58,7 @@ exports.getExercisesByUser = async (req, res) => {
   const userId = req.params.userId;
 
   try {
-    const exercises = await Exercise.find({ user: userId }).sort({ createdAt: -1 });
+    const exercises = await Exercise.find({ user: userId, active: true }).sort({ createdAt: -1 });
     res.json(exercises);
   } catch (error) {
     res.status(500).json({ error: "Error al obtener los ejercicios del usuario" });
@@ -69,11 +69,11 @@ exports.getExerciseById = async (req, res) => {
   const exerciseId = req.params.id;
 
   try {
-    const exercise = await Exercise.findById(exerciseId);
+    const exercise = await Exercise.findOne({ _id: exerciseId, active: true });
     if (!exercise) {
       return res.status(404).json({ error: "Ejercicio no encontrado" });
     }
-    res.json(exercise);
+    res.json(exercise); 
   } catch (error) {
     res.status(500).json({ error: "Error al obtener el ejercicio" });
   }
@@ -92,18 +92,36 @@ const retryRequest = async (fn, retries = 3, delayTime = 1000) => {
 };
 
 exports.generateExercise = async (req, res) => {
-  const { difficulty, userId } = req.body; // 1: Fácil, 2: Medio, 3: Difícil
+  const { difficulty, userId } = req.body; 
 
-  // Verificar si hay ejercicios predefinidos para el nivel especificado
   if (!predefinedExercises[difficulty]) {
     return res.status(400).json({ error: "Nivel de dificultad no válido" });
   }
 
   try {
-    // Validar si hay ejercicios pendientes
+
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ error: "Usuario no encontrado" });
+    }
+
+    // Verificar si el puntaje del usuario es menor a 350
+    if (user.points < 350) {
+      // Restablecer los ejercicios del usuario
+      await Exercise.updateMany({ user: userId, difficulty }, { active: false });
+
+      // Restablecer el puntaje del usuario
+      user.points = 600;
+      await user.save();
+
+      return res.status(400).json({ error: "Tu puntaje es menor a 350, por lo tanto se ha restablecido el nivel." });
+    }
+
     const unfinishedExercise = await Exercise.findOne({
       user: userId,
-      status: { $in: ["En proceso", "Requiere revisión"] }, // Puedes ajustar los estados relevantes
+      status: { $in: ["En proceso", "Requiere revisión"] },
+      active: true,
     });
 
     if (unfinishedExercise) {
@@ -112,29 +130,31 @@ exports.generateExercise = async (req, res) => {
       });
     }
 
-    // Verificar si el usuario tiene al menos 10 ejercicios completados de dificultad 1 para generar un ejercicio de dificultad 2
     if (difficulty === 2) {
       const completedLevel1Count = await Exercise.countDocuments({
         difficulty: 1,
         user: userId,
         status: "Completado",
+        active: true,
       });
       if (completedLevel1Count < 10) {
         return res.status(400).json({ error: "Debes completar el nivel Básico" });
       }
     }
 
-    // Verificar si el usuario tiene al menos 10 ejercicios completados de dificultad 1 y 10 ejercicios completados de dificultad 2 para generar un ejercicio de dificultad 3
     if (difficulty === 3) {
       const completedLevel1Count = await Exercise.countDocuments({
         difficulty: 1,
         user: userId,
         status: "Completado",
+        active: true,
       });
+
       const completedLevel2Count = await Exercise.countDocuments({
         difficulty: 2,
         user: userId,
         status: "Completado",
+        active: true,
       });
       if (completedLevel1Count < 10 || completedLevel2Count < 10) {
         return res.status(400).json({ error: "Debes completar el nivel Intermedio" });
@@ -144,6 +164,7 @@ exports.generateExercise = async (req, res) => {
     const existingExercisesCount = await Exercise.countDocuments({
       difficulty,
       user: userId,
+      active: true,
     });
 
     if (existingExercisesCount >= 10) {
@@ -187,6 +208,7 @@ exports.generateExercise = async (req, res) => {
       difficulty,
       user: userId,
       status: "En proceso", // Establecer el estado inicial
+      active: true,
     });
 
     await newExercise.save();
@@ -337,13 +359,12 @@ exports.getSolutionByExerciseAndUser = async (req, res) => {
   const { exerciseId, userId } = req.params;
 
   try {
-    // Buscar todas las soluciones del usuario para un ejercicio específico
     const solutions = await Solution.find({
       exercise: new mongoose.Types.ObjectId(exerciseId),
       user: new mongoose.Types.ObjectId(userId),
     })
-      .sort({ createdAt: 1 }) // Ordenar cronológicamente
-      .select("code feedback createdAt"); // Seleccionar solo los campos relevantes
+      .sort({ createdAt: 1 }) 
+      .select("code feedback createdAt"); 
 
     if (!solutions || solutions.length === 0) {
       const exercise = await Exercise.findById(exerciseId);
@@ -359,7 +380,7 @@ exports.getSolutionByExerciseAndUser = async (req, res) => {
           subtitle: exercise.subtitle,
           difficulty: exercise.difficulty,
         },
-        solutions: [], // Retornar un array vacío si no hay soluciones
+        solutions: [], 
       });
     }
 
@@ -398,8 +419,6 @@ exports.submitSolution = async (req, res) => {
     if (!exercise)
       return res.status(404).json({ error: "Ejercicio no encontrado" });
 
-    console.log("Ejercicio encontrado:", exercise);
-
     const adjustedCode = code.replace(/public\s+class/g, 'class');
 
     const base64Code = Buffer.from(adjustedCode).toString('base64');
@@ -412,7 +431,7 @@ exports.submitSolution = async (req, res) => {
       `${process.env.JUDGE0_API_URL}/submissions?base64_encoded=true`,
       {
         source_code: base64Code,
-        language_id: 62, // ID de Java en Judge0
+        language_id: 62,
         stdin: "",
         expected_output: expectedOutput,
       },
@@ -445,13 +464,11 @@ exports.submitSolution = async (req, res) => {
       await new Promise((resolve) => setTimeout(resolve, 1000)); 
     }
 
-    // Decodificar los resultados de base64 a UTF-8
     const decodeBase64 = (data) => (data ? Buffer.from(data, 'base64').toString('utf-8') : null);
     const stdout = decodeBase64(evaluation.stdout);
     const stderr = decodeBase64(evaluation.stderr);
     const compileOutput = decodeBase64(evaluation.compile_output);
 
-    // Generar un prompt para OpenAI para interpretar la salida y dar feedback detallado
     const openaiPrompt = `
     Aquí tienes la descripción del problema:
       ${exercise.description}
@@ -486,18 +503,15 @@ exports.submitSolution = async (req, res) => {
     const feedback = openaiResponse.data.choices[0].message.content.trim();
 
     let newStatus = "En proceso";
-
     if (!stderr && !compileOutput) {
       newStatus = "Completado";
     } else {
       newStatus = "Requiere revisión";
     }
     
-    // Actualizar el estado del ejercicio
     exercise.status = newStatus;
     await exercise.save();
 
-    // Guardar la solución con el feedback
     const newSolution = new Solution({
       user: userId,
       exercise: exerciseId,
@@ -509,6 +523,19 @@ exports.submitSolution = async (req, res) => {
     });
 
     await newSolution.save();
+
+        // Verificar el puntaje del usuario después de evaluar la solución
+        const user = await User.findById(userId);
+        if (user.points < 350) {
+          // Restablecer los ejercicios del usuario
+          await Exercise.updateMany({ user: userId }, { active: false });
+    
+          // Restablecer el puntaje del usuario
+          user.points = 600;
+          await user.save();
+    
+          return res.status(400).json({ error: "Tu puntaje es menor a 350, por lo tanto se ha restablecido el nivel y puntación." });
+        }
 
     // Responder al cliente
     res.json({
@@ -522,5 +549,20 @@ exports.submitSolution = async (req, res) => {
   } catch (error) {
     console.error("Error al evaluar la solución:", error.response ? error.response.data : error.message);
     res.status(500).json({ error: "Error al evaluar la solución" });
+  }
+};
+
+exports.getUserPoints = async (req, res) => {
+  const userId = req.params.userId;
+
+  try {
+    const user = await User.findById(userId).select("points");
+    if (!user) {
+      return res.status(404).json({ error: "Usuario no encontrado" });
+    }
+    res.json({ points: user.points });
+  } catch (error) {
+    console.error("Error al obtener los puntos del usuario:", error);
+    res.status(500).json({ error: "Error al obtener los puntos del usuario" });
   }
 };

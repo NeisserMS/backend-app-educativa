@@ -393,4 +393,55 @@ router.get("/:id/:userId/help", protect, exerciseController.getHelp);
 // Obtener la solución de un ejercicio específico para un usuario específico
 router.get("/:exerciseId/:userId/solution", protect, exerciseController.getSolutionByExerciseAndUser);
 
+/**
+ * @swagger
+ * /users/{userId}/points:
+ *   get:
+ *     summary: Obtener los puntos del usuario
+ *     tags: [Usuarios]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: ID del usuario
+ *     responses:
+ *       200:
+ *         description: Puntos del usuario obtenidos exitosamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 points:
+ *                   type: number
+ *                   example: 600
+ *       404:
+ *         description: Usuario no encontrado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: Usuario no encontrado
+ *       500:
+ *         description: Error en el servidor
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: Error al obtener los puntos del usuario
+ */
+
+// Obtener los puntos del usuario
+router.get("/users/:userId/points", protect, exerciseController.getUserPoints);
+
 module.exports = router;
