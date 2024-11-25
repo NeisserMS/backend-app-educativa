@@ -11,5 +11,6 @@ module.exports = {
   openaiOrgId: process.env.OPENAI_ORG_ID,
   openaiProjectId: process.env.OPENAI_PROJECT_ID,
   email: process.env.EMAIL_USER,
-  password: process.env.EMAIL_PASS
+  password: process.env.EMAIL_PASS,
+  frontend_url: process.env.FRONTEND_URL
 };
