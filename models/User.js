@@ -51,6 +51,8 @@ const UserSchema = new mongoose.Schema({
   role: { type: String, enum: ["student", "instructor"], default: "student" },
   points: { type: Number, required: true, default: 600 },
   createdAt: { type: Date, default: Date.now },
+  resetPasswordToken: { type: String, default: null },
+  resetPasswordExpiry: { type: Date, default: null },
 });
 
 

@@ -135,4 +135,109 @@ router.post("/register", authController.register);
 // Inicio de sesión
 router.post("/login", authController.login);
 
+/**
+ * @swagger
+ * /auth/request-password-reset:
+ *   post:
+ *     summary: Solicitar restablecimiento de contraseña
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 example: "usuario@example.com"
+ *     responses:
+ *       200:
+ *         description: Correo de restablecimiento de contraseña enviado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Correo de restablecimiento de contraseña enviado"
+ *       404:
+ *         description: Usuario no encontrado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: "Usuario no encontrado"
+ *       500:
+ *         description: Error en el servidor
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: "Error en el servidor"
+ */
+
+// Solicitar restablecimiento de contraseña
+router.post("/request-password-reset", authController.requestPasswordReset);
+
+/**
+ * @swagger
+ * /auth/reset-password:
+ *   post:
+ *     summary: Restablecer la contraseña utilizando un token válido
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               token:
+ *                 type: string
+ *                 example: "abc123token"
+ *               password:
+ *                 type: string
+ *                 example: "NuevaContraseñaSegura123"
+ *     responses:
+ *       200:
+ *         description: Contraseña restablecida exitosamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Contraseña restablecida correctamente"
+ *       400:
+ *         description: Token inválido o caducado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: "Token inválido o caducado"
+ *       500:
+ *         description: Error en el servidor
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: "Error en el servidor"
+ */
+router.post("/reset-password", authController.resetPassword);
+
 module.exports = router;

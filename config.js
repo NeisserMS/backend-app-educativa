@@ -9,5 +9,7 @@ module.exports = {
   judge0ApiUrl: process.env.JUDGE0_API_URL,
   judge0ApiKey: process.env.JUDGE0_API_KEY,
   openaiOrgId: process.env.OPENAI_ORG_ID,
-  openaiProjectId: process.env.OPENAI_PROJECT_ID
+  openaiProjectId: process.env.OPENAI_PROJECT_ID,
+  email: process.env.EMAIL_USER,
+  password: process.env.EMAIL_PASS
 };
