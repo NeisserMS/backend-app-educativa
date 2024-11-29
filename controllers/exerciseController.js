@@ -26,9 +26,9 @@ const predefinedExercises = {
     { title: "Ejercicio 5: Clases Internas", description: "Crea una clase interna Direccion en Persona, con atributos calle y ciudad. Método getDireccion() debe devolver la dirección completa." },
     { title: "Ejercicio 6: Excepciones Personalizadas", description: "Crea una excepción personalizada EdadNegativaException. Lanza esta excepción si la edad en Persona es negativa." },
     { title: "Ejercicio 7: Colecciones y Generics", description: "Crea una lista de objetos Persona y ordena por edad usando una función de comparación." },
-    { title: "Ejercicio 8: Manejo de Archivos", description: "Implementa un método para guardar y leer la información de Persona en un archivo." },
-    { title: "Ejercicio 9: Serialización JSON", description: "Serializa Persona a JSON y deserializa." },
-    { title: "Ejercicio 10: Programación Funcional", description: "Usa lambdas para filtrar personas mayores de cierta edad en una lista." },
+    { title: "Ejercicio 8: Manejo de Archivos (Sin librerías externas)", description: "Descripción: Implementa un programa que guarde información de objetos en un archivo de texto y los lea posteriormente. Entrada: Datos de varias personas proporcionados como cadenas. Salida: Contenido del archivo leído y desglosado." },
+    { title: "Ejercicio 9: Estructuras en Texto (Serialización manual)", description: "Serializa manualmente un objeto Persona a un formato similar a JSON (usando solo cadenas) y luego deserialízalo. Entrada: Un objeto Persona (representado por tres atributos: nombre, edad y pais). Salida: Cadena similar a JSON y recuperación del objeto." },
+    { title: "Ejercicio 10: Filtrado con funciones personalizadas", description: "Implementa una función para filtrar manualmente personas mayores de cierta edad en una lista sin usar lambdas ni funciones predefinidas como filter. Entrada: Lista de personas representadas como tuplas (nombre, edad, pais) y un entero como límite de edad. Salida: Lista filtrada de personas mayores a la edad dada." },
   ],
   3: [
     { title: "Ejercicio 1: Singleton", description: "Implementa Singleton en PersonaManager y prueba que solo se crea una instancia." },
@@ -43,7 +43,6 @@ const predefinedExercises = {
     { title: "Ejercicio 10: API RESTful", description: "Crea una API REST para CRUD de Persona con endpoints definidos." },
   ]
 };
-
 
 exports.getAllExercises = async (req, res) => {
   try {
