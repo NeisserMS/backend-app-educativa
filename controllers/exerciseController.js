@@ -7,8 +7,8 @@ const axios = require("axios");
 
 const predefinedExercises = {
   1: [
-    { title: "Ejercicio 1: Crear una Clase", description: "Crea una clase llamada Persona con los atributos nombre y edad, y además incluye el método main para ejecutar el ejercicio,y por ultimo que no considere los métodos get y set." },
-    { title: "Ejercicio 2: Métodos Getters y Setters", description: "Añade métodos getters y setters para los atributos nombre y edad en la clase Persona." },
+    { title: "Ejercicio 1: Crear una Clase", description: "Crea una clase llamada Persona con los atributos nombre y edad, y además incluye el método main para ejecutar el ejercicio,y por ultimo que no considere los métodos get y set, toString u otros porque no se pide." },
+    { title: "Ejercicio 2: Métodos Getters y Setters", description: "Añade métodos getters y setters para los atributos nombre y edad en la clase Persona. Por ultimo no consideres otros métodos como toString o constructor." },
     { title: "Ejercicio 3: Constructor", description: "Añade un constructor a la clase Persona que inicialice los atributos nombre y edad." },
     { title: "Ejercicio 4: Método toString", description: "Añade un método toString a la clase Persona que devuelva una cadena con el nombre y la edad de la persona." },
     { title: "Ejercicio 5: Herencia", description: "Crea una clase Estudiante que herede de Persona y añada el atributo matricula." },
@@ -348,6 +348,19 @@ exports.getHelp = async (req, res) => {
     exercise.numberHelp += 1;
     await exercise.save();
 
+        // Guardar la ayuda generada en la base de datos
+        const newSolution = new Solution({
+          user: userId,
+          exercise: exerciseId,
+          code: "", // No hay código en la ayuda, solo feedback
+          feedback: helpContent,
+          stdout: "",
+          stderr: "",
+          compile_output: "",
+        });
+    
+        await newSolution.save();
+
     res.status(200).json({ help: helpContent, points: user.points });
   } catch (error) {
     console.error("Error al obtener la ayuda:", error.response ? error.response.data : error.message);
@@ -384,13 +397,11 @@ exports.getSolutionByExerciseAndUser = async (req, res) => {
       });
     }
 
-    // Obtener los detalles del ejercicio asociado
     const exercise = await Exercise.findById(exerciseId);
     if (!exercise) {
       return res.status(404).json({ error: "Ejercicio no encontrado" });
     }
 
-    // Combinar la información del ejercicio y las soluciones
     const combinedResult = {
       exercise: {
         id: exercise._id,
@@ -399,7 +410,7 @@ exports.getSolutionByExerciseAndUser = async (req, res) => {
         subtitle: exercise.subtitle,
         difficulty: exercise.difficulty,
       },
-      solutions, // Devolver todas las soluciones como un array
+      solutions, 
     };
 
     return res.json(combinedResult);

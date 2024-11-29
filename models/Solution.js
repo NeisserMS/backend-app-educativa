@@ -53,7 +53,7 @@ const SolutionSchema = new mongoose.Schema({
     ref: "Exercise",
     required: true,
   },
-  code: { type: String, required: true },
+  code: { type: String, default: ""  },
   feedback: { type: String, required: true },
   createdAt: { type: Date, default: Date.now },
   stdout: { type: String }, 
