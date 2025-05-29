@@ -8,45 +8,58 @@ const sgMail = require("@sendgrid/mail");
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
 exports.register = async (req, res) => {
-  const { nombres, apellidos, email, password, repeatPassword } = req.body;
+  const { nombres, email, telefono, password } = req.body;
 
-  if (password !== repeatPassword) {
-    return res.status(400).json({ error: "Las contraseñas no coinciden" });
+  if (!nombres || !email || !telefono || !password) {
+    return res.status(400).json({ error: "Todos los campos son obligatorios" });
   }
 
   try {
     const existingUser = await User.findOne({ email });
     if (existingUser) {
-      return res.status(400).json({ error: "El correo electrónico ya está registrado" });
+      return res
+        .status(400)
+        .json({ error: "El correo electrónico ya está registrado" });
     }
 
-    const newUser = new User({ nombres, apellidos, email, password });
+    const newUser = new User({
+      name: nombres,
+      email,
+      telefono,
+      password,
+    });
+
     await newUser.save();
     res.status(201).json({ message: "Usuario registrado exitosamente" });
   } catch (error) {
-    console.error("Error al registrar el usuario:", error); 
+    console.error("Error al registrar el usuario:", error);
     res.status(500).json({ error: "Error en el servidor" });
   }
 };
 
 exports.login = async (req, res) => {
+  console.log("Datos recibidos en login:", req.body);
+
   const { email, password } = req.body;
 
   try {
     const user = await User.findOne({ email });
+    console.log("Usuario encontrado:", user ? user.email : "No encontrado");
+
     if (!user) {
-      console.log("Usuario no encontrado");
       return res.status(400).json({ error: "Usuario no encontrado" });
     }
 
     const isMatch = await user.comparePassword(password);
+    console.log("¿Contraseña coincide?:", isMatch);
+
     if (!isMatch) {
-      console.log("Contraseña incorrecta");
       return res.status(400).json({ error: "Contraseña incorrecta" });
     }
 
+    // Si quieres usar JWT, puedes dejarlo así, pero solo con id y email
     const token = jwt.sign(
-      { id: user._id, role: user.role },
+      { id: user._id, email: user.email },
       process.env.JWT_SECRET,
       { expiresIn: "1d" }
     );
@@ -55,11 +68,8 @@ exports.login = async (req, res) => {
       token,
       user: {
         id: user._id,
-        nombres: user.nombres,
-        apellidos: user.apellidos,
+        name: user.name,
         email: user.email,
-        role: user.role,
-        points: user.points,
       },
     });
   } catch (error) {
@@ -100,9 +110,14 @@ exports.requestPasswordReset = async (req, res) => {
 
     await sgMail.send(msg);
 
-    res.status(200).json({ message: "Correo de restablecimiento de contraseña enviado" });
+    res
+      .status(200)
+      .json({ message: "Correo de restablecimiento de contraseña enviado" });
   } catch (error) {
-    console.error("Error al solicitar el restablecimiento de contraseña:", error);
+    console.error(
+      "Error al solicitar el restablecimiento de contraseña:",
+      error
+    );
     res.status(500).json({ error: "Error en el servidor" });
   }
 };
@@ -140,7 +155,7 @@ exports.resetPassword = async (req, res) => {
       return res.status(400).json({ error: "Token inválido o caducado" });
     }
 
-    user.password = password; // Middleware `pre('save')` encripta la contraseña
+    user.password = password;
     user.resetPasswordToken = null;
     user.resetPasswordExpiry = null;
 
@@ -152,19 +167,3 @@ exports.resetPassword = async (req, res) => {
     res.status(500).json({ error: "Error en el servidor" });
   }
 };
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

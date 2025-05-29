@@ -44,17 +44,11 @@ const bcrypt = require("bcrypt");
  */
 
 const UserSchema = new mongoose.Schema({
-  nombres: { type: String, required: true, trim: true },
-  apellidos: { type: String, required: true, trim: true },
+  name: { type: String, required: true, trim: true }, 
   email: { type: String, required: true, unique: true, trim: true },
-  password: { type: String, required: true },
-  role: { type: String, enum: ["student", "instructor"], default: "student" },
-  points: { type: Number, required: true, default: 600 },
-  createdAt: { type: Date, default: Date.now },
-  resetPasswordToken: { type: String, default: null },
-  resetPasswordExpiry: { type: Date, default: null },
+  telefono: { type: String, required: true, trim: true },
+  password: { type: String, required: true }
 });
-
 
 // Middleware para encriptar la contraseña antes de guardar
 UserSchema.pre("save", async function (next) {
@@ -72,4 +66,4 @@ UserSchema.methods.comparePassword = function (candidatePassword) {
   return bcrypt.compare(candidatePassword, this.password);
 };
 
-module.exports = mongoose.model("User", UserSchema);
+module.exports = mongoose.model("users", UserSchema);
