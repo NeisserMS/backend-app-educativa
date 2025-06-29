@@ -166,4 +166,6 @@ router.put("/:id/estado", licenciaController.actualizarEstado);
  */
 router.put("/:id", licenciaController.editarLicencia);
 
+router.delete("/:id", licenciaController.eliminarLicencia);
+
 module.exports = router;

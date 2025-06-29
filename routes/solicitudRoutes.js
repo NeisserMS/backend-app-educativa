@@ -201,4 +201,6 @@ router.post(
   solicitudController.extraerTextoRecibo
 );
 
+router.delete("/:id", solicitudController.eliminarSolicitud);
+
 module.exports = router;

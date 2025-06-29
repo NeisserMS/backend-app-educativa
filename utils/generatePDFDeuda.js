@@ -1,11 +1,9 @@
-// utils/generatePDFDeuda.js
 const PDFDocument = require("pdfkit");
 const fs = require("fs");
 const path = require("path");
-const QRCode = require("qrcode");
 
 /**
- * Genera un PDF de deuda con QR de pago Yape.
+ * Genera un PDF de deuda con QR de pago Yape (imagen local).
  * @param {Object} deuda - Objeto con los datos de la deuda.
  * @param {Function} callback - Callback que recibe (error, filePath).
  */
@@ -55,40 +53,33 @@ function generatePDFDeuda(deuda, callback) {
     }
   );
 
-  // QR con datos para Yape
-  const yapeLink = `https://yape.com.pe/pay/70369866?amount=${deuda.monto.toFixed(
-    2
-  )}&note=Pago%20de%20${encodeURIComponent(deuda.concepto)}`;
-
-  QRCode.toDataURL(yapeLink, (err, qrDataURL) => {
-    if (err) {
-      callback(err, null);
-      return;
-    }
-
-    // Convertir base64 a imagen en PDF
-    const qrImage = qrDataURL.replace(/^data:image\/png;base64,/, "");
-    const buffer = Buffer.from(qrImage, "base64");
-    doc.image(buffer, {
+  // Inserta la imagen QR local
+  const qrPath = path.join(__dirname, "../img/maria.png");
+  if (fs.existsSync(qrPath)) {
+    doc.image(qrPath, {
       fit: [120, 120],
       align: "center",
       valign: "center",
     });
-
     doc.moveDown();
     doc
       .fontSize(10)
       .text("Escanee el QR con Yape para pagar.", { align: "center" });
+  } else {
+    doc
+      .fontSize(10)
+      .fillColor("red")
+      .text("No se encontró la imagen QR.", { align: "center" });
+  }
 
-    doc.end();
+  doc.end();
 
-    stream.on("finish", () => {
-      callback(null, filePath);
-    });
+  stream.on("finish", () => {
+    callback(null, filePath);
+  });
 
-    stream.on("error", (err) => {
-      callback(err, null);
-    });
+  stream.on("error", (err) => {
+    callback(err, null);
   });
 }
 

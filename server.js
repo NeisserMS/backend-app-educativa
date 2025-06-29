@@ -26,7 +26,6 @@ mongoose
   });
 
 const authRoutes = require("./routes/authRoutes");
-const exerciseRoutes = require("./routes/exerciseRoutes");
 const solicitudRoutes = require("./routes/solicitudRoutes");
 const licenciaRoutes = require("./routes/licenciaRoutes");
 const notificacionRoutes = require("./routes/notificacionRoutes");
@@ -34,7 +33,6 @@ const permisoRoutes = require("./routes/permisoRoutes");
 const deudaRoutes = require("./routes/deudaRoutes");
 
 app.use("/api/auth", authRoutes);
-app.use("/api/exercises", exerciseRoutes);
 app.use("/api/solicitud", solicitudRoutes);
 app.use("/api/licencia", licenciaRoutes);
 app.use("/api/pendientes", notificacionRoutes);

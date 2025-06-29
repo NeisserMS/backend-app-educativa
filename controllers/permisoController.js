@@ -127,3 +127,20 @@ exports.actualizarEstado = async (req, res) => {
     res.status(500).json({ error: "Error al actualizar estado" });
   }
 };
+
+exports.eliminarPermiso = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const permisoEliminado = await Permiso.findByIdAndDelete(id);
+
+    if (!permisoEliminado) {
+      return res.status(404).json({ mensaje: "Permiso no encontrado" });
+    }
+
+    res.status(200).json({ mensaje: "Permiso eliminado correctamente" });
+  } catch (error) {
+    console.error("Error al eliminar el permiso:", error);
+    res.status(500).json({ error: "Error al eliminar el permiso" });
+  }
+};

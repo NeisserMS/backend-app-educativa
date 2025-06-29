@@ -227,3 +227,20 @@ exports.extraerTextoRecibo = async (req, res) => {
     res.status(500).json({ error: "Error al extraer texto del recibo" });
   }
 };
+
+exports.eliminarSolicitud = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const eliminarSolicitud = await Solicitud.findByIdAndDelete(id);
+
+    if (!eliminarSolicitud) {
+      return res.status(404).json({ mensaje: "Solicitud no encontrado" });
+    }
+
+    res.status(200).json({ mensaje: "Solicitud eliminado correctamente" });
+  } catch (error) {
+    console.error("Error al eliminar el Solicitud:", error);
+    res.status(500).json({ error: "Error al eliminar el Solicitud" });
+  }
+};

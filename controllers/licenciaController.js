@@ -113,3 +113,20 @@ exports.editarLicencia = async (req, res) => {
     res.status(500).json({ error: "Error al actualizar la licencia" });
   }
 };
+
+exports.eliminarLicencia = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const eliminarLicencia = await Licencia.findByIdAndDelete(id);
+
+    if (!eliminarLicencia) {
+      return res.status(404).json({ mensaje: "Licencia no encontrado" });
+    }
+
+    res.status(200).json({ mensaje: "Licencia eliminado correctamente" });
+  } catch (error) {
+    console.error("Error al eliminar el Licencia:", error);
+    res.status(500).json({ error: "Error al eliminar el Licencia" });
+  }
+};

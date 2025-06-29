@@ -14,4 +14,6 @@ router.put("/:id", permisoController.actualizarPermiso);
 // @route PUT /api/permiso/:id/estado
 router.put("/:id/estado", permisoController.actualizarEstado);
 
+router.delete("/:id", permisoController.eliminarPermiso);
+
 module.exports = router;
