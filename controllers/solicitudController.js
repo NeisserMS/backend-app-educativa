@@ -26,7 +26,19 @@ exports.crearSolicitud = async (req, res) => {
       nroOperacionPago,
     } = req.body;
 
-    //const archivo = req.file;
+    const solicitudExistente = await Solicitud.findOne({
+      dniSolicitante: dniSolicitante,
+      dniConyuge: dniConyuge,
+    });
+
+    console.log("solicitudExistente", solicitudExistente);
+
+    if (solicitudExistente) {
+      return res.status(400).json({
+        error:
+          "Ya existe una solicitud registrada con estos DNI. No se puede duplicar la solicitud.",
+      });
+    }
 
     const nuevaSolicitud = new Solicitud({
       dniSolicitante,
